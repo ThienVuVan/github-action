@@ -1,0 +1,118 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  # add more even trigger if you want
+
+env:
+  AWS_REGION: 'desired region'
+  EKS_CLUSTER_NAME: 'eks-name'
+  EKS_CONTEXT: 'context-for-kubectl'
+  IMAGE_TAG_MANUAL: 'your-image-tag' # Set your IMAGE_TAG_MANUAL
+  DEPLOY_ACCOUNT_ID: ${{ secrets.DEPLOY_ACCOUNT_ID }}
+  IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
+  IMAGE_TAG: ${{ secrets.IMAGE_TAG }}
+  GITHUB_BRANCH: ${{ secrets.GITHUB_BRANCH }} # branch you want to checkout
+  NODE_SELECTOR: ${{ secrets.NODE_SELECTOR }} # Assuming NODE_SELECTOR is a secret if used
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+jobs:
+  build_and_deploy:
+    runs-on: self-hosted
+
+    steps:
+    - name: Checkout code from GitHub
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ env.GITHUB_BRANCH }} # remove if you wanna checkout current commit
+
+    - name: Set up AWS CLI
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Update kubeconfig for EKS
+      run: |
+        aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+        kubectl config use-context ${{ env.EKS_CONTEXT }}
+
+    - name: Build Images
+      run: |
+        echo "========== Build images Start =========="
+        if [ -z "${{ env.IMAGE_TAG_MANUAL }}" ]; then
+          CURRENT_DATE=$(date +%Y%m%d%H%M%S)
+          IMAGE_TAG="${GITHUB_REF_NAME}-${CURRENT_DATE}"
+        else
+          IMAGE_TAG="${{ env.IMAGE_TAG_MANUAL }}"
+        fi
+        docker build -t ${ env.DEPLOY_ACCOUNT_ID }.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}:${IMAGE_TAG} -f Dockerfile.server src/.
+        echo "========== Build images End =========="
+
+    - name: Push Images
+      run: |
+        echo "========== Push images Start =========="
+        aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${ env.DEPLOY_ACCOUNT_ID }.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+        docker push ${ env.DEPLOY_ACCOUNT_ID }.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}:${IMAGE_TAG}
+        echo "========== Push images End =========="
+
+    - name: Deploy Kubernetes namespaces
+      run: |
+        echo "========== Deploy Kubernetes namespaces Start =========="
+        envsubst < ./CICD/deployment/lifescience_backend_namespaces.yaml | kubectl apply -f -
+        echo "========== Deploy Kubernetes namespaces End =========="
+
+    - name: Deploy Kubernetes configmap
+      run: |
+        echo "========== Deploy Kubernetes configmap Start =========="
+        envsubst < ./CICD/deployment/lifescience_backend_configmap.yaml | kubectl apply -f -
+        echo "========== Deploy Kubernetes configmap End =========="
+
+    - name: Deploy Kubernetes secret
+      run: |
+        echo "========== Deploy Kubernetes secret Start =========="
+        envsubst < ./CICD/deployment/lifescience_backend_secret.yaml | kubectl apply -f -
+        echo "========== Deploy Kubernetes secret End =========="
+
+    - name: Deploy Kubernetes deployment
+      run: |
+        echo "========== Deploy Kubernetes deployment Start =========="
+        if [ -z "${{ env.NODE_SELECTOR }}" ]; then
+          envsubst < ./CICD/deployment/lifescience_backend_deploy.yaml | kubectl apply -f -
+        else
+          envsubst < ./CICD/deployment/lifescience_backend_deploy_new.yaml | kubectl apply -f -
+        fi
+        echo "========== Deploy Kubernetes deployment End =========="
+
+    - name: Deploy Kubernetes Service
+      run: |
+        echo "========== Deploy Kubernetes Service Start =========="
+        if [ -z "${{ env.NODE_SELECTOR }}" ]; then
+          envsubst < ./CICD/deployment/lifescience_backend_service.yaml | kubectl apply -f -
+        else
+          envsubst < ./CICD/deployment/lifescience_backend_service_new.yaml | kubectl apply -f -
+        fi
+        echo "========== Deploy Kubernetes Service End =========="
+
+    - name: Clear out build directory
+      run: |
+        echo "========== Build success and clear out files Start =========="
+        docker rmi ${ env.DEPLOY_ACCOUNT_ID }.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}:${IMAGE_TAG}
+        rm -rf *
+        echo "========== Build success and clear out files End =========="
+
+    - name: Post build actions
+      run: |
+        echo "Always running post build actions"
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "Deployment completed successfully." >> result.log
+        elif [ "${{ job.status }}" == "failure" ]; then
+          echo "Deployment failed." >> result.log
+        elif [ "${{ job.status }}" == "cancelled" ]; then
+          echo "Deployment cancelled." >> result.log
+        fi

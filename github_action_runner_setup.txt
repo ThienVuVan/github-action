@@ -1,0 +1,67 @@
+### Setting Up a Self-Hosted GitHub Actions Runner
+
+## Requirements:
+    # Linux Server: Ensure you have a Linux server (x64 architecture) with a public IP and SSH access.
+    # Amazon EKS Cluster: You must have an existing Amazon EKS cluster.
+    # IAM User/Role: Ensure the IAM user or role has permissions:
+        - Full access to Amazon EKS
+        - Full access to Amazon ECR (Elastic Container Registry)
+    # AWS CLI: Installed and configured. Verify by running:
+        $ aws sts get-caller-identity
+        - Ensure that your access key and secret key are configured in `~/.aws/credentials`.
+    # kubectl: Install the kubectl command-line tool to interact with your Kubernetes cluster.
+    # NOTE: You do not need to execute any commands from the above list
+    # Reference: [Access kubectl to EKS](https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html)
+
+## Installation Steps:
+1. Install AWS CLI:
+   # Download and install the AWS CLI:
+     $ curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+     $ unzip awscliv2.zip
+     $ sudo ./aws/install
+   # Reference: [AWS CLI Installation Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+
+2. Install kubectl:
+   # Download and install kubectl:
+     $ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+     $ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+     $ echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+   # Install kubectl:
+     $ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+   # Verify the installation:
+     $ kubectl version --client
+   # Reference: [kubectl Installation Guide](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux)
+
+3. Install and Configure GitHub Actions Runner:
+   # Download the Runner:
+     $ mkdir actions-runner && cd actions-runner
+     $ curl -o actions-runner-linux-x64-2.319.1.tar.gz -L https://github.com/actions/runner/releases/download/v2.319.1/actions-runner-linux-x64-2.319.1.tar.gz
+     $ echo "3f6efb7488a183e291fc2c62876e14c9ee732864173734facc85a1bfb1744464  actions-runner-linux-x64-2.319.1.tar.gz" | shasum -a 256 -c
+     $ tar xzf ./actions-runner-linux-x64-2.319.1.tar.gz
+
+   # Configure the Runner:
+     $ ./config.sh --url https://github.com/YourUsername/YourRepo --token YOUR_GITHUB_TOKEN
+     Replace `https://github.com/YourUsername/YourRepo` with your GitHub repository URL and `YOUR_GITHUB_TOKEN` with your GitHub Actions runner token.
+
+   # Run the Runner:
+     $ ./run.sh
+     To run the runner as a service and ensure it starts automatically:
+     $ ./service.sh install
+     $ sudo ./service.sh start
+
+## Setting Up Secrets in a GitHub Repository:
+   - Navigate to your GitHub repository in the GitHub web interface.
+   - In the repository menu, select [Settings].
+   - Under the [Security] section in the left sidebar, click on [Secrets and variables], then choose [Actions].
+   - Click the [New repository secret] button.
+   - Enter a descriptive name for your secret in the [Name] field. This should correspond to the environment variable names used in your workflow file.
+   - Input the secret value in the [Value] field.
+   - Click [Add secret] to save the secret.
+   - Ensure that the secrets are kept secure and that access is restricted to necessary users and workflows only.
+   # NOTE: This is not best practice for secret storing, i will update later.
+
+## Using Your Self-Hosted Runner in GitHub Actions Workflows:
+    - In your GitHub Actions workflow YAML file, specify `runs-on: self-hosted` to use the self-hosted runner for a job:
+        jobs:
+        build_and_deploy:
+            runs-on: self-hosted
