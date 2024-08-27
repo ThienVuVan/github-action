@@ -30,7 +30,7 @@ jobs:
       with:
         ref: ${{ env.GITHUB_BRANCH }} # remove if you wanna checkout current commit
 
-    - name: Set up AWS CLI
+    - name: Set up AWS CLI credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
         aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
