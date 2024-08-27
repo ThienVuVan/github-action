@@ -9,7 +9,7 @@
     # AWS CLI: Installed and configured. Verify by running:
         $ aws sts get-caller-identity
         - Ensure that your access key and secret key are configured in `~/.aws/credentials`.
-        # NOTE: you can self config or not, we helped you config this in cicd pipeline, make sure you have configed the pair of access and secret key in github sercret.
+        # NOTE: you can self config or not, we helped you config this in cicd pipeline, make sure you have configured the pair of access and secret key in github sercret.
     # kubectl: Install the kubectl command-line tool to interact with your Kubernetes cluster.
     # Reference: [Access kubectl to EKS](https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html)
 
