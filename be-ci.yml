@@ -37,7 +37,7 @@ jobs:
         aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
       
-    # if you already have kubeconfig file, please comment first code block and using second code block\
+    # if you already have kubeconfig file, please comment first code block and using second code block
     # first code block
     - name: Update kubeconfig for EKS
       run: |
