@@ -9,8 +9,8 @@
     # AWS CLI: Installed and configured. Verify by running:
         $ aws sts get-caller-identity
         - Ensure that your access key and secret key are configured in `~/.aws/credentials`.
+        # NOTE: you can self config or not, we helped you config this in cicd pipeline, make sure you have configed the pair of access and secret key in github sercret.
     # kubectl: Install the kubectl command-line tool to interact with your Kubernetes cluster.
-    # NOTE: You do not need to execute any commands from the above list
     # Reference: [Access kubectl to EKS](https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html)
 
 ## Installation Steps:
@@ -42,6 +42,7 @@
    # Configure the Runner:
      $ ./config.sh --url https://github.com/YourUsername/YourRepo --token YOUR_GITHUB_TOKEN
      Replace `https://github.com/YourUsername/YourRepo` with your GitHub repository URL and `YOUR_GITHUB_TOKEN` with your GitHub Actions runner token.
+     # set up tag for runner as you want
 
    # Run the Runner:
      $ ./run.sh
@@ -60,8 +61,14 @@
    - Ensure that the secrets are kept secure and that access is restricted to necessary users and workflows only.
    # NOTE: This is not best practice for secret storing, i will update later.
 
+## Setting up workflow file
+  - In root directory, if .github/workflows directory is not exists, create .github/workflows in root directory
+  - Paste three workflow files (be-ci.yml, bff-ci.yml, fe-ci.yml) in the .github/workflows directory
+  - Commit code and obserse the process.
+  # NOTE: make sure you have kubernetes manifest files in ./CICD/deployment/
+
 ## Using Your Self-Hosted Runner in GitHub Actions Workflows:
     - In your GitHub Actions workflow YAML file, specify `runs-on: self-hosted` to use the self-hosted runner for a job:
         jobs:
         build_and_deploy:
-            runs-on: self-hosted
+            runs-on: self-hosted # any you set for runner in configuration process.
